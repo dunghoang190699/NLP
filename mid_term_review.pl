@@ -1,60 +1,65 @@
 % =====================================================
-% Feature-based DCG with person, number, tense agreement
+% Feature-based DCG with person, number, tense, and case
 % =====================================================
 
 % ---------- Sentence ----------
-% Enforce agreement between subject NP and VP (Num, Pers, Tense)
+% Subject NP must be nominative
 s(s(NPTree, VPTree)) -->
-    np(NPTree, Num, Pers),
+    np(NPTree, Num, Pers, nom),
     vp(VPTree, Num, Pers, Tense),
     { member(Tense, [present, past]) }.
 
-% Coordinate NP = plural, 3rd person
+% Coordinate NP (plural, 3rd person)
 s(s(NPTree, VPTree)) -->
-    np_coordinate(NPTree, pl, 3),
+    np_coordinate(NPTree, pl, 3, nom),
     vp(VPTree, pl, 3, Tense),
     { member(Tense, [present, past]) }.
 
 % ---------- Noun Phrases ----------
-np(np(noun(Noun)), Num, Pers) --> noun(Noun, Num, Pers).
-np(np(det(Det), noun(Noun)), Num, Pers) --> det(Det, Num), noun(Noun, Num, Pers).
-np(np(adj(Adj), noun(Noun)), Num, Pers) --> adj(Adj), noun(Noun, Num, Pers).
-np(np(det(Det1), det(Det2), noun(Noun)), Num, Pers) -->
-    det(Det1, _), det(Det2, _), noun(Noun, Num, Pers).
+np(np(noun(Noun)), Num, Pers, _) -->
+    noun(Noun, Num, Pers).
+np(np(det(Det), noun(Noun)), Num, Pers, _) -->
+    det(Det, Num),
+    noun(Noun, Num, Pers).
+np(np(pron(Pron)), Num, Pers, Case) -->
+    pron(Pron, Num, Pers, Case).
+np(np(adj(Adj), noun(Noun)), Num, Pers, _) -->
+    adj(Adj),
+    noun(Noun, Num, Pers).
+np(np(det(Det1), det(Det2), noun(Noun)), Num, Pers, _) -->
+    det(Det1, _),
+    det(Det2, _),
+    noun(Noun, Num, Pers).
 
-% Coordinate NP => plural, 3rd person
-np_coordinate(np_coop(np(NP1), conj(Conj), np(NP2)), pl, 3) -->
-    np(NP1, _, _), conj(Conj), np(NP2, _, _).
+% Coordinate NP => plural, 3rd person, nominative
+np_coordinate(np_coop(np(NP1), conj(Conj), np(NP2)), pl, 3, Case) -->
+    np(NP1, _, _, Case),
+    conj(Conj),
+    np(NP2, _, _, Case).
 
 % ---------- Verb Phrases ----------
 % VP inherits subject Num, Pers; verb defines tense
 vp(vp(verb(Verb)), Num, Pers, Tense) -->
     verb(Verb, Num, Pers, Tense).
 
+% Verb + direct object NP (accusative)
+vp(vp(verb(Verb), np(NP)), Num, Pers, Tense) -->
+    verb(Verb, Num, Pers, Tense),
+    { verb_subcat(Verb, Subcats), member(np, Subcats) },
+    np(NP, _, _, acc).
+
+% Verb + PP
 vp(vp(verb(Verb), pp(PP)), Num, Pers, Tense) -->
     verb(Verb, Num, Pers, Tense),
     pp(PP).
 
-vp(vp(verb(Verb), np(NP)), Num, Pers, Tense) -->
-    verb(Verb, Num, Pers, Tense),
-    { verb_subcat(Verb, Subcats), member(np, Subcats) },
-    np(NP, _, _).
-
-vp(vp(verb(Verb), verb_comp(VerbComp)), Num, Pers, Tense) -->
-    verb(Verb, Num, Pers, Tense),
-    verb_comp(VerbComp).
-
+% Link verb + adjp
 vp(vp(link_verb(Verb), adjp(AP)), Num, Pers, Tense) -->
     link_verb(Verb, Num, Pers, Tense),
     adjp(AP).
 
-vp(vp(transitive_verb(Verb), np(NP)), Num, Pers, Tense) -->
-    transitive_verb(Verb, Num, Pers, Tense),
-    { verb_subcat(Verb, Subcats), member(np, Subcats) },
-    np(NP, _, _).
-
 % ---------- PP / ADJP / Complements ----------
-pp(pp(pr(Prep), np(NP))) --> pr(Prep, _), np(NP, _, _).
+pp(pp(pr(Prep), np(NP))) --> pr(Prep, _), np(NP, _, _, _).
 verb_comp(verb_comp(in(Inf), verb(Verb))) --> in(Inf), verb(Verb, _, _, inf).
 adjp(adjp(adv(Adv), adj(Adj))) --> adv(Adv), adj(Adj).
 
@@ -73,35 +78,34 @@ adj(affectionated) --> [affectionated].
 adj(euphoric) --> [euphoric].
 adv(strangely) --> [strangely].
 
-% Nouns: include number & default 3rd person
-noun(sam, sg, 3) --> [sam].
-noun(stream, sg, 3) --> [stream].
+% Nouns
+noun(dog, sg, 3) --> [dog].
 noun(cat, sg, 3) --> [cat].
 noun(cats, pl, 3) --> [cats].
-noun(dog, sg, 3) --> [dog].
-noun(dogs, pl, 3) --> [dogs].
 noun(clowns, pl, 3) --> [clowns].
 noun(accrobats, pl, 3) --> [accrobats].
 noun(nicholas, sg, 3) --> [nicholas].
 noun(junta, sg, 3) --> [junta].
 noun(critics, pl, 3) --> [critics].
 
-% ---------- Verbs ----------
-% (Verb, Num, Pers, Tense)
-% Past tense is number/person invariant
-verb(sunbathed, _, _, past) --> [sunbathed].
-verb(refused, _, _, past) --> [refused].
-verb(cooperate, _, _, inf) --> [cooperate].
+% Pronouns with case, number, person
+pron(he, sg, 3, nom) --> [he].
+pron(him, sg, 3, acc) --> [him].
+pron(they, pl, 3, nom) --> [they].
+pron(them, pl, 3, acc) --> [them].
+pron(i, sg, 1, nom) --> [i].
+pron(me, sg, 1, acc) --> [me].
+pron(we, pl, 1, nom) --> [we].
+pron(us, pl, 1, acc) --> [us].
+pron(you, _, 2, nom) --> [you].
+pron(you, _, 2, acc) --> [you].
 
-% Present tense agreement
-verb(dreads, sg, 3, present) --> [dreads].
-verb(dread, pl, _, present) --> [dread].
-verb(sleeps, sg, 3, present) --> [sleeps].
-verb(sleep, pl, 3, present) --> [sleep].
-verb(chases, sg, 3, present) --> [chases].
+% Verbs (with number/person/tense)
 verb(chase, pl, 3, present) --> [chase].
+verb(chases, sg, 3, present) --> [chases].
+verb(chased, _, _, past) --> [chased].
 
-% Link / Transitive verbs (past)
+% Linking / Transitive verbs
 link_verb(felt, _, _, past) --> [felt].
 transitive_verb(disappeared, _, _, past) --> [disappeared].
 
@@ -111,13 +115,9 @@ conj(and) --> [and].
 in(to) --> [to].
 
 % ---------- Subcategorization ----------
-verb_subcat(disappeared, [np]).
-verb_subcat(dreads, [np]).
-verb_subcat(sunbathed, []).
-verb_subcat(refused, [to]).
-verb_subcat(cooperate, []).
 verb_subcat(chase, [np]).
 verb_subcat(chases, [np]).
+verb_subcat(chased, [np]).
 
 % ---------- Parser Helper ----------
 parse_string(Str, Tree) :-
@@ -125,10 +125,3 @@ parse_string(Str, Tree) :-
     maplist(string_lower, Tokens, Lower),
     maplist(atom_string, Atoms, Lower),
     phrase(s(Tree), Atoms).
-
-% ---------- Example Queries ----------
-% ?- parse_string("old sam sunbathed besides a stream", Tree).
-% ?- parse_string("phil dreads affectionated cat", Tree).
-% ?- parse_string("the clowns and the accrobats refused to cooperate", Tree).
-% ?- parse_string("nicholas felt strangely euphoric", Tree).
-% ?- parse_string("the junta disappeared all its critics", Tree).
